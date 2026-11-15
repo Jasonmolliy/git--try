@@ -278,7 +278,7 @@
   <div class="card" id="screenStart">
     <div class="eyebrow">AIM TRAINER · 无尽模式</div>
     <h1 class="title">点靶<span>训练</span></h1>
-    <p class="sub">鼠标控制准星，点击靶心。分数越高，靶子越小、越快、越多。</p>
+    <p class="sub">鼠标控制准星，点击靶心。分数越高，靶子越小（有最小尺寸）、越快、越多。</p>
     <div class="best-row">最高分 <b id="bestStart">0</b></div>
 
     <div class="settings">
@@ -345,6 +345,13 @@
 
   /* ================= 基础引用 ================= */
   const TAU = Math.PI * 2;
+
+  /* 靶子尺寸机制：随等级缩小，但有最小下限，避免后期无法命中 */
+  const TARGET_MAX_R = 46;      // 初始半径（像素）
+  const TARGET_MIN_R = 18;      // 最小半径：不会比这更小
+  const TARGET_SHRINK = 2.4;    // 每升一级缩小的半径
+  const TARGET_MIN_LEVEL = 1 + Math.ceil((TARGET_MAX_R - TARGET_MIN_R) / TARGET_SHRINK);
+
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const overlay = document.getElementById('overlay');
@@ -781,8 +788,11 @@
   /* ================= 靶子 ================= */
   function spawnTarget() {
     const level = state.level;
-    const radiusBase = 44 - (level - 1) * 2.1;
-    const r = Math.max(12, radiusBase + (Math.random() * 6 - 3));
+    const radiusBase = TARGET_MAX_R - (level - 1) * TARGET_SHRINK;
+    const r = Math.max(
+      TARGET_MIN_R,
+      Math.min(TARGET_MAX_R, radiusBase + (Math.random() * 6 - 3))
+    );
     const life = Math.max(0.8, 2.5 - (level - 1) * 0.1);
 
     const topMargin = 104;
@@ -901,8 +911,13 @@
   function refreshLevel() {
     const lvl = 1 + Math.floor(state.score / 220);
     if (lvl > state.level) {
+      const reachedMin = lvl >= TARGET_MIN_LEVEL && state.level < TARGET_MIN_LEVEL;
       state.level = lvl;
-      showToast('等级 ' + lvl + ' · 难度提升', 1400);
+      if (reachedMin) {
+        showToast('靶子已缩到最小 · 之后难度靠速度提升', 2200);
+      } else {
+        showToast('等级 ' + lvl + ' · 难度提升', 1400);
+      }
       playLevel();
     }
   }
